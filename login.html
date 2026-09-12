@@ -109,14 +109,14 @@
     }
 
     showMsg('로그인 성공! 이동 중…', 'ok');
-    setTimeout(function(){ window.location.href = 'user-local-test.html'; }, 800);
+    setTimeout(function(){ window.location.href = 'user.html'; }, 800);
   });
 
   // 이미 로그인되어 있으면 바로 신호등 페이지로
   if(configured){
     supabase.auth.getSession().then(function(res){
       if(res.data.session){
-        window.location.href = 'user-local-test.html';
+        window.location.href = 'user.html';
       }
     });
   }

@@ -98,6 +98,8 @@
   }
   .toast.show{transform:translate(-50%, 0);}
   .toast-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+  .logout-btn{background:none; border:1px solid var(--panel-border); color:var(--text-mid); font-size:12.5px; padding:6px 12px; border-radius:999px; cursor:pointer; font-family:'Barlow', sans-serif;}
+  .logout-btn:hover{color:var(--text-hi); border-color:#3a3a40;}
 
   @media (prefers-reduced-motion: reduce){ .conn-dot.live{animation:none;} .toast{transition:none;} }
 </style>
@@ -116,7 +118,10 @@
 
   <div class="topbar">
     <div class="brand"><span class="brand-mark"></span>SIGNAL <span class="role-tag">사용자</span></div>
-    <span class="conn"><span class="conn-dot" id="connDot"></span><span id="connText">연결 중…</span></span>
+    <div style="display:flex; align-items:center; gap:12px;">
+      <span class="conn"><span class="conn-dot" id="connDot"></span><span id="connText">연결 중…</span></span>
+      <button class="logout-btn" id="logoutBtn" style="display:none">로그아웃</button>
+    </div>
   </div>
 
   <div class="screen">
@@ -309,6 +314,20 @@
   // ---------- init ----------
   async function init(){
     if(!configured) return;
+
+    // 로그인 여부 확인 (U-1은 '누구나 보는 화면'이 아니라 '로그인한 사람만 보는 화면'으로 변경됨)
+    var sessionRes = await supabase.auth.getSession();
+    if(!sessionRes.data.session){
+      window.location.href = 'login.html';
+      return;
+    }
+    var logoutBtn = document.getElementById('logoutBtn');
+    logoutBtn.style.display = '';
+    logoutBtn.addEventListener('click', async function(){
+      await supabase.auth.signOut();
+      window.location.href = 'login.html';
+    });
+
     askNotifPermission();
     setConn('connecting');
     await fetchOnce();
