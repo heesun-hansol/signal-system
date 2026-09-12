@@ -137,13 +137,14 @@
     }
 
     if(res.data.session){
-      // 이메일 인증(Confirm email)이 꺼져있는 경우 바로 로그인 상태가 됨
-      showMsg('가입 완료! 신호등 페이지로 이동합니다…', 'ok');
-      setTimeout(function(){ window.location.href = 'user-local-test.html'; }, 1200);
-    } else {
-      showMsg('가입 완료! 인증 메일을 보냈어요. 메일함에서 인증 후 로그인해주세요.', 'ok');
-      form.reset();
+      // Confirm email이 꺼져있으면 가입과 동시에 로그인 세션이 생기는데,
+      // 요청하신 대로 자동입장 대신 로그인 화면으로 보내기 위해 세션을 바로 종료합니다.
+      await supabase.auth.signOut();
     }
+
+    showMsg('회원가입되셨습니다! 로그인 페이지로 이동합니다…', 'ok');
+    form.reset();
+    setTimeout(function(){ window.location.href = 'login.html'; }, 1200);
   });
 })();
 </script>
