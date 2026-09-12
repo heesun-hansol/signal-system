@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>SIGNAL · 관리자</title>
+
+<!-- PWA: 홈 화면에 추가하면 앱처럼 열림 (iOS/Android 공통) -->
+<link rel="manifest" href="manifest-admin.json">
+<meta name="theme-color" content="#020203">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="SIGNAL 관리자">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --bg:#020203;
+    --panel-face:#0c0c0e;
+    --panel-face-hi:#19191c;
+    --panel-border:#232326;
+    --metal-top:#d8dbde;
+    --metal-mid:#9ea3a8;
+    --metal-bottom:#6b6f74;
+    --green:#3dffa0;
+    --red:#ff4545;
+    --off-line:#3a3a3e;
+    --text-hi:#f2f2f0;
+    --text-mid:#9a9a9e;
+    --text-low:#59595d;
+    --focus:#5b8cff;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    background:radial-gradient(ellipse at 50% -10%, #131316 0%, var(--bg) 55%);
+    color:var(--text-hi);
+    font-family:'Barlow', sans-serif;
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+    overflow-x:hidden;
+  }
+  button{font-family:inherit;}
+  button:focus-visible, .tap-target:focus-visible{outline:2px solid var(--focus); outline-offset:4px;}
+
+  .topbar{display:flex; align-items:center; justify-content:space-between; padding:calc(18px + env(safe-area-inset-top)) 22px 18px; flex-shrink:0;}
+  .brand{font-family:'Barlow Condensed', sans-serif; font-weight:600; font-size:20px; letter-spacing:0.06em; display:flex; align-items:center; gap:8px;}
+  .brand-mark{width:9px;height:9px;border-radius:50%; background:var(--green); box-shadow:0 0 8px var(--green);}
+  .role-tag{font-size:13px; color:var(--text-mid); border:1px solid var(--panel-border); padding:4px 10px; border-radius:999px;}
+  .conn{display:flex; align-items:center; gap:7px; font-size:13px; color:var(--text-mid);}
+  .conn-dot{width:7px;height:7px;border-radius:50%; background:var(--text-low);}
+  .conn-dot.live{background:var(--green); box-shadow:0 0 6px var(--green); animation:pulse-dot 1.6s ease-in-out infinite;}
+  .conn-dot.down{background:var(--red); box-shadow:0 0 6px var(--red);}
+  @keyframes pulse-dot{0%,100%{opacity:1;} 50%{opacity:0.35;}}
+
+  .screen{flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:20px 20px calc(40px + env(safe-area-inset-bottom)); width:100%;}
+
+  .panel-wrap{display:flex; flex-direction:column; align-items:center;}
+  .panel{
+    position:relative; width:220px; height:320px; border-radius:22px;
+    background:linear-gradient(155deg, var(--panel-face-hi) 0%, var(--panel-face) 55%, #050506 100%);
+    border:1px solid var(--panel-border);
+    box-shadow:inset 0 1px 1px rgba(255,255,255,0.04), 0 20px 50px rgba(0,0,0,0.55);
+    display:flex; flex-direction:column; align-items:center; justify-content:flex-start;
+    padding:38px 20px 0; transition:box-shadow .35s ease;
+    user-select:none; -webkit-user-select:none; touch-action:manipulation;
+  }
+  .panel.glow-green{box-shadow:inset 0 1px 1px rgba(255,255,255,0.04), 0 0 70px 6px rgba(61,255,160,0.30), 0 20px 50px rgba(0,0,0,0.55);}
+  .panel.glow-red{box-shadow:inset 0 1px 1px rgba(255,255,255,0.04), 0 0 70px 6px rgba(255,69,69,0.30), 0 20px 50px rgba(0,0,0,0.55);}
+
+  .panel-icon-ring{width:118px;height:118px;border-radius:50%; border:2.5px solid var(--off-line); display:flex;align-items:center;justify-content:center; transition:border-color .3s ease, filter .3s ease; flex-shrink:0;}
+  .panel-icon-ring.on-green{border-color:var(--green); filter:drop-shadow(0 0 10px rgba(61,255,160,0.85));}
+  .panel-icon-ring.on-red{border-color:var(--red); filter:drop-shadow(0 0 10px rgba(255,69,69,0.85));}
+  .panel-icon-ring svg{width:52%; height:52%; stroke:var(--off-line); transition:stroke .3s ease;}
+  .panel-icon-ring.on-green svg{stroke:var(--green);}
+  .panel-icon-ring.on-red svg{stroke:var(--red);}
+
+  .panel-label{font-family:'Barlow Condensed', sans-serif; font-weight:600; font-size:22px; letter-spacing:0.04em; margin-top:22px; color:var(--off-line); transition:color .3s ease, text-shadow .3s ease; height:28px;}
+  .panel-label.on-green{color:var(--green); text-shadow:0 0 14px rgba(61,255,160,0.6);}
+  .panel-label.on-red{color:var(--red); text-shadow:0 0 14px rgba(255,69,69,0.6);}
+
+  .panel-foot{margin-top:auto; width:100%; height:34px; border-radius:0 0 20px 20px; background:linear-gradient(180deg, var(--metal-top), var(--metal-mid) 55%, var(--metal-bottom));}
+
+  .admin-hint{margin-top:26px; text-align:center; color:var(--text-mid); font-size:14px; line-height:1.7;}
+  .admin-hint b{color:var(--text-hi); font-weight:600;}
+  .manual-row{display:flex; gap:10px; margin-top:20px;}
+  .chip{border:1px solid var(--panel-border); background:var(--panel-face); color:var(--text-mid); padding:9px 16px; border-radius:999px; font-size:13px; cursor:pointer; display:flex; align-items:center; gap:7px; transition:border-color .15s ease, color .15s ease;}
+  .chip:hover{color:var(--text-hi); border-color:#3a3a40;}
+  .chip:disabled{opacity:0.4; cursor:not-allowed;}
+  .chip-dot{width:8px;height:8px;border-radius:50%;}
+  .chip-dot.g{background:var(--green); box-shadow:0 0 5px var(--green);}
+  .chip-dot.r{background:var(--red); box-shadow:0 0 5px var(--red);}
+  .chip-dot.o{background:var(--off-line);}
+
+  .updated-at{margin-top:18px; font-size:12.5px; color:var(--text-low);}
+  .setup-warning{
+    margin-top:22px; max-width:340px; text-align:center; font-size:13px; color:#ffb457;
+    background:#2a1f0e; border:1px solid #4a3a1a; padding:12px 16px; border-radius:12px; line-height:1.6;
+  }
+
+  .toast{
+    position:fixed; top:16px; left:50%; transform:translate(-50%, -140%);
+    background:#151517; border:1px solid var(--panel-border); padding:12px 18px; border-radius:12px;
+    font-size:14px; color:var(--text-hi); display:flex; align-items:center; gap:9px;
+    box-shadow:0 12px 30px rgba(0,0,0,0.5); transition:transform .35s cubic-bezier(.2,.8,.2,1); z-index:50; max-width:88vw;
+  }
+  .toast.show{transform:translate(-50%, 0);}
+  .toast-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+
+  @media (prefers-reduced-motion: reduce){ .conn-dot.live{animation:none;} .toast{transition:none;} }
+</style>
+</head>
+<body>
+
+  <!--
+    ============================================================
+    SUPABASE 설정 (필수)
+    1) supabase.com 프로젝트 생성 (기능목록 S-1)
+    2) lights 테이블 생성 + 초기 행(id=1, state='off') 입력 (S-2, S-3)
+    3) Database > Replication 에서 lights 테이블 Realtime 켜기 (S-4)
+    4) Project Settings > API 에서 아래 두 값 복붙 (S-5)
+    ============================================================
+  -->
+  <script>
+    const SUPABASE_URL = 'https://jlgmyahokoxexnidyadl.supabase.co';   // ← 본인 Project URL로 교체
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpsZ215YWhva294ZXhuaWR5YWRsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg2Nzk5MjcsImV4cCI6MjEwNDI1NTkyN30.CI-6ZitGVYkE5eHzyCdsAkADKZFj4Ub4B1391IJ8C6w';              // ← 본인 anon public key로 교체
+  </script>
+
+  <div class="topbar">
+    <div class="brand"><span class="brand-mark"></span>SIGNAL <span class="role-tag">관리자</span></div>
+    <span class="conn"><span class="conn-dot" id="connDot"></span><span id="connText">연결 중…</span></span>
+  </div>
+
+  <div class="screen">
+    <div class="panel-wrap">
+      <button class="panel tap-target" id="adminPanel" aria-label="신호등, 탭하여 조작" disabled>
+        <div class="panel-icon-ring" id="ring">
+          <svg id="iconPerson" viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="8" r="3.4"/>
+            <path d="M5.5 20c0-4 3-6.5 6.5-6.5S18.5 16 18.5 20"/>
+          </svg>
+          <svg id="iconClock" viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="display:none">
+            <circle cx="12" cy="12" r="8.5"/>
+            <path d="M12 7.5V12l3 2"/>
+          </svg>
+        </div>
+        <div class="panel-label" id="label">&nbsp;</div>
+        <div class="panel-foot"></div>
+      </button>
+
+      <div class="admin-hint"><b>탭</b> 색상 전환 &nbsp;·&nbsp; <b>더블탭</b> 끄기</div>
+
+      <div class="manual-row">
+        <button class="chip" data-set="green" disabled><span class="chip-dot g"></span>초록</button>
+        <button class="chip" data-set="red" disabled><span class="chip-dot r"></span>빨강</button>
+        <button class="chip" data-set="off" disabled><span class="chip-dot o"></span>끄기</button>
+      </div>
+
+      <div class="updated-at" id="updatedAt"></div>
+      <div class="setup-warning" id="setupWarning" style="display:none">
+        ⚠ Supabase URL/KEY가 아직 설정되지 않았습니다. 파일 상단의 SUPABASE_URL / SUPABASE_ANON_KEY 값을 본인 프로젝트 값으로 바꿔주세요.
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"><span class="toast-dot" id="toastDot"></span><span id="toastText"></span></div>
+
+<script>
+(function(){
+  "use strict";
+
+  var DOUBLE_TAP_MS = 380;
+  var TABLE = 'lights';
+  var ROW_ID = 1;
+
+  var els = {
+    panel: document.getElementById('adminPanel'),
+    ring: document.getElementById('ring'),
+    label: document.getElementById('label'),
+    iconPerson: document.getElementById('iconPerson'),
+    iconClock: document.getElementById('iconClock'),
+    updatedAt: document.getElementById('updatedAt'),
+    connDot: document.getElementById('connDot'),
+    connText: document.getElementById('connText'),
+    toast: document.getElementById('toast'),
+    toastDot: document.getElementById('toastDot'),
+    toastText: document.getElementById('toastText'),
+    setupWarning: document.getElementById('setupWarning'),
+    chips: document.querySelectorAll('.chip'),
+  };
+
+  var state = { light: 'off', updatedAt: null };
+  var supabase = null;
+
+  // ---------- setup check ----------
+  var configured = SUPABASE_URL.indexOf('YOUR-PROJECT-ID') === -1 && SUPABASE_ANON_KEY.length > 20;
+  if(!configured){
+    els.setupWarning.style.display = 'block';
+    els.connText.textContent = '설정 필요';
+  } else {
+    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    els.panel.removeAttribute('disabled');
+    els.chips.forEach(function(c){ c.removeAttribute('disabled'); });
+  }
+
+  // ---------- render ----------
+  function render(light){
+    els.ring.classList.remove('on-green','on-red');
+    els.label.classList.remove('on-green','on-red');
+    els.panel.classList.remove('glow-green','glow-red');
+
+    if(light === 'green'){
+      els.ring.classList.add('on-green');
+      els.label.classList.add('on-green');
+      els.panel.classList.add('glow-green');
+      els.label.textContent = 'COME IN';
+      els.iconPerson.style.display = '';
+      els.iconClock.style.display = 'none';
+    } else if(light === 'red'){
+      els.ring.classList.add('on-red');
+      els.label.classList.add('on-red');
+      els.panel.classList.add('glow-red');
+      els.label.textContent = 'PLEASE WAIT';
+      els.iconPerson.style.display = 'none';
+      els.iconClock.style.display = '';
+    } else {
+      els.label.textContent = '\u00a0';
+      els.iconPerson.style.display = '';
+      els.iconClock.style.display = 'none';
+    }
+  }
+
+  function fmtTime(ts){
+    if(!ts) return '';
+    var d = new Date(ts);
+    return d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0')+':'+d.getSeconds().toString().padStart(2,'0');
+  }
+
+  function showToast(text, color){
+    els.toastText.textContent = text;
+    els.toastDot.style.background = color==='g' ? 'var(--green)' : color==='r' ? 'var(--red)' : 'var(--off-line)';
+    els.toast.classList.add('show');
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(function(){ els.toast.classList.remove('show'); }, 2600);
+  }
+
+  function setConn(status){
+    els.connDot.classList.remove('live','down');
+    if(status === 'live'){ els.connDot.classList.add('live'); els.connText.textContent = '연결됨'; }
+    else if(status === 'down'){ els.connDot.classList.add('down'); els.connText.textContent = '연결 끊김'; }
+    else { els.connText.textContent = '연결 중…'; }
+  }
+
+  // ---------- state machine (기능목록 §1) ----------
+  function nextFromClick(current){
+    if(current === 'green') return 'red';
+    if(current === 'red') return 'green';
+    return 'green'; // off -> green
+  }
+
+  // ---------- supabase I/O ----------
+  async function fetchInitial(){
+    var res = await supabase.from(TABLE).select('*').eq('id', ROW_ID).single();
+    if(res.error || !res.data){
+      state.light = 'off'; // C-3: 값 없으면 off로 초기화
+      state.updatedAt = null;
+      return;
+    }
+    state.light = res.data.state || 'off';
+    state.updatedAt = res.data.updated_at;
+  }
+
+  async function applyLight(light, opts){
+    opts = opts || {};
+    var prev = state.light;
+    state.light = light;
+    render(light);
+
+    var nowIso = new Date().toISOString();
+    var res = await supabase.from(TABLE).update({ state: light, updated_at: nowIso }).eq('id', ROW_ID);
+
+    if(res.error){
+      // C-4: 저장 실패 시 알림, 이전 상태로 되돌림
+      state.light = prev;
+      render(prev);
+      showToast('저장 실패: 네트워크를 확인해주세요', 'r');
+      return;
+    }
+
+    state.updatedAt = nowIso;
+    els.updatedAt.textContent = '마지막 변경 · ' + fmtTime(state.updatedAt);
+    if(!opts.silent){
+      var text = light === 'green' ? '초록불 켜짐' : light === 'red' ? '빨간불 켜짐' : '꺼짐';
+      var color = light === 'green' ? 'g' : light === 'red' ? 'r' : null;
+      showToast(text, color);
+    }
+  }
+
+  // ---------- 더블탭 판정 ----------
+  var pendingTimer = null;
+  var lastTapTime = 0;
+  function handleTap(){
+    var now = Date.now();
+    if(now - lastTapTime < DOUBLE_TAP_MS){
+      clearTimeout(pendingTimer);
+      lastTapTime = 0;
+      applyLight('off');
+      return;
+    }
+    lastTapTime = now;
+    clearTimeout(pendingTimer);
+    pendingTimer = setTimeout(function(){
+      applyLight(nextFromClick(state.light));
+    }, DOUBLE_TAP_MS);
+  }
+
+  // ---------- init ----------
+  async function init(){
+    if(!configured) return;
+    setConn('connecting');
+    await fetchInitial();
+    render(state.light);
+    els.updatedAt.textContent = state.updatedAt ? ('마지막 변경 · ' + fmtTime(state.updatedAt)) : '';
+
+    // A-7: 외부(다른 관리자 세션) 변경 감지
+    var channel = supabase.channel('lights-admin-' + ROW_ID)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: TABLE, filter: 'id=eq.' + ROW_ID }, function(payload){
+        var next = payload.new;
+        if(!next) return;
+        if(next.updated_at === state.updatedAt) return; // 자기 자신이 방금 쓴 변경이면 무시
+        state.light = next.state;
+        state.updatedAt = next.updated_at;
+        render(state.light);
+        els.updatedAt.textContent = '마지막 변경 · ' + fmtTime(state.updatedAt);
+      })
+      .subscribe(function(status){
+        if(status === 'SUBSCRIBED') setConn('live');
+        else if(status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') setConn('down');
+      });
+
+    els.panel.addEventListener('click', handleTap);
+    els.chips.forEach(function(chip){
+      chip.addEventListener('click', function(){ applyLight(chip.getAttribute('data-set')); });
+    });
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>

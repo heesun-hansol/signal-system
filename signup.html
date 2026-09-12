@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SIGNAL · 회원가입</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --bg:#020203; --card:#0c0c0e; --card-hi:#19191c; --border:#232326;
+    --green:#3dffa0; --red:#ff4545; --text-hi:#f2f2f0; --text-mid:#9a9a9e; --text-low:#59595d;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; min-height:100vh; background:radial-gradient(ellipse at 50% -10%, #131316 0%, var(--bg) 55%); color:var(--text-hi); font-family:'Barlow', sans-serif; display:flex; align-items:center; justify-content:center; padding:24px;}
+  .card{width:100%; max-width:380px; background:linear-gradient(180deg, var(--card-hi), var(--card)); border:1px solid var(--border); border-radius:18px; padding:32px 28px;}
+  .brand{font-family:'Barlow Condensed', sans-serif; font-weight:700; font-size:22px; letter-spacing:0.05em; display:flex; align-items:center; gap:8px; margin-bottom:4px;}
+  .brand-mark{width:9px;height:9px;border-radius:50%; background:var(--green); box-shadow:0 0 8px var(--green);}
+  h1{font-family:'Barlow Condensed', sans-serif; font-weight:600; font-size:20px; margin:18px 0 22px; color:var(--text-mid);}
+  label{display:block; font-size:13px; color:var(--text-mid); margin-bottom:6px;}
+  input{width:100%; background:#050506; border:1px solid var(--border); border-radius:10px; padding:11px 13px; color:var(--text-hi); font-size:15px; margin-bottom:16px;}
+  input:focus{outline:none; border-color:var(--green);}
+  .hint{font-size:12px; color:var(--text-low); margin:-10px 0 16px;}
+  button{width:100%; padding:12px; border:none; border-radius:10px; background:var(--green); color:#04140c; font-weight:600; font-size:15px; cursor:pointer; margin-top:6px;}
+  button:disabled{opacity:0.5; cursor:not-allowed;}
+  .msg{font-size:13.5px; margin-top:14px; padding:10px 12px; border-radius:10px; display:none; line-height:1.5;}
+  .msg.error{display:block; background:#2a0f0f; border:1px solid #4a1a1a; color:#ff8a8a;}
+  .msg.ok{display:block; background:#0d3324; border:1px solid #1a4a35; color:#7dffc0;}
+  .foot{margin-top:20px; text-align:center; font-size:13.5px; color:var(--text-mid);}
+  .foot a{color:var(--green); text-decoration:none;}
+  .setup-warning{margin-top:16px; font-size:12.5px; color:#ffb457; background:#2a1f0e; border:1px solid #4a3a1a; padding:10px 12px; border-radius:10px; display:none; line-height:1.6;}
+</style>
+</head>
+<body>
+
+  <!-- SUPABASE 설정: admin.html/user.html과 동일한 값으로 교체하세요 -->
+  <script>
+    const SUPABASE_URL = 'https://jlgmyahokoxexnidyadl.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpsZ215YWhva294ZXhuaWR5YWRsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg2Nzk5MjcsImV4cCI6MjEwNDI1NTkyN30.CI-6ZitGVYkE5eHzyCdsAkADKZFj4Ub4B1391IJ8C6w';
+    const ALLOWED_EMAIL_DOMAIN = '@hansol.com'; // 회사 도메인 제한
+  </script>
+
+  <div class="card">
+    <div class="brand"><span class="brand-mark"></span>SIGNAL</div>
+    <h1>회원가입</h1>
+
+    <form id="signupForm">
+      <label for="employeeId">사번</label>
+      <input id="employeeId" type="text" placeholder="예: 20240012" required>
+
+      <label for="email">회사 이메일</label>
+      <input id="email" type="email" placeholder="you@hansol.com" required>
+      <div class="hint" id="domainHint">@hansol.com 이메일만 가입 가능합니다</div>
+
+      <label for="password">비밀번호</label>
+      <input id="password" type="password" placeholder="8자 이상" required minlength="8">
+
+      <label for="password2">비밀번호 확인</label>
+      <input id="password2" type="password" required minlength="8">
+
+      <button type="submit" id="submitBtn">가입하기</button>
+    </form>
+
+    <div class="msg" id="msg"></div>
+    <div class="setup-warning" id="setupWarning">⚠ Supabase URL/KEY가 설정되지 않았습니다. 파일 상단 값을 교체해주세요.</div>
+
+    <div class="foot">이미 계정이 있으신가요? <a href="login.html">로그인</a></div>
+  </div>
+
+<script>
+(function(){
+  "use strict";
+  var configured = SUPABASE_URL.indexOf('YOUR-PROJECT-ID') === -1 && SUPABASE_ANON_KEY.length > 20;
+  var msgEl = document.getElementById('msg');
+  var form = document.getElementById('signupForm');
+  var submitBtn = document.getElementById('submitBtn');
+
+  document.getElementById('domainHint').textContent = ALLOWED_EMAIL_DOMAIN + ' 이메일만 가입 가능합니다';
+
+  if(!configured){
+    document.getElementById('setupWarning').style.display = 'block';
+    submitBtn.disabled = true;
+  }
+
+  var supabase = configured ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+
+  function showMsg(text, type){
+    msgEl.textContent = text;
+    msgEl.className = 'msg ' + type;
+  }
+
+  form.addEventListener('submit', async function(e){
+    e.preventDefault();
+    msgEl.className = 'msg';
+
+    var employeeId = document.getElementById('employeeId').value.trim();
+    var email = document.getElementById('email').value.trim();
+    var password = document.getElementById('password').value;
+    var password2 = document.getElementById('password2').value;
+
+    if(!email.toLowerCase().endsWith(ALLOWED_EMAIL_DOMAIN)){
+      showMsg(ALLOWED_EMAIL_DOMAIN + ' 이메일만 가입할 수 있습니다.', 'error');
+      return;
+    }
+    if(password !== password2){
+      showMsg('비밀번호가 서로 일치하지 않습니다.', 'error');
+      return;
+    }
+    if(password.length < 8){
+      showMsg('비밀번호는 8자 이상이어야 합니다.', 'error');
+      return;
+    }
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = '처리 중…';
+
+    var res = await supabase.auth.signUp({
+      email: email,
+      password: password,
+      options: { data: { employee_id: employeeId } }
+    });
+
+    submitBtn.disabled = false;
+    submitBtn.textContent = '가입하기';
+
+    if(res.error){
+      // 사번 중복(unique 위반), 도메인 제약 위반 등도 여기로 옴
+      var friendly = res.error.message;
+      if(friendly.indexOf('duplicate') !== -1 || friendly.indexOf('unique') !== -1){
+        friendly = '이미 등록된 사번이거나 이메일입니다.';
+      } else if(friendly.indexOf('check') !== -1){
+        friendly = ALLOWED_EMAIL_DOMAIN + ' 이메일만 가입할 수 있습니다.';
+      }
+      showMsg(friendly, 'error');
+      return;
+    }
+
+    if(res.data.session){
+      // 이메일 인증(Confirm email)이 꺼져있는 경우 바로 로그인 상태가 됨
+      showMsg('가입 완료! 신호등 페이지로 이동합니다…', 'ok');
+      setTimeout(function(){ window.location.href = 'user-local-test.html'; }, 1200);
+    } else {
+      showMsg('가입 완료! 인증 메일을 보냈어요. 메일함에서 인증 후 로그인해주세요.', 'ok');
+      form.reset();
+    }
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SIGNAL · 로그인</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --bg:#020203; --card:#0c0c0e; --card-hi:#19191c; --border:#232326;
+    --green:#3dffa0; --red:#ff4545; --text-hi:#f2f2f0; --text-mid:#9a9a9e; --text-low:#59595d;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; min-height:100vh; background:radial-gradient(ellipse at 50% -10%, #131316 0%, var(--bg) 55%); color:var(--text-hi); font-family:'Barlow', sans-serif; display:flex; align-items:center; justify-content:center; padding:24px;}
+  .card{width:100%; max-width:380px; background:linear-gradient(180deg, var(--card-hi), var(--card)); border:1px solid var(--border); border-radius:18px; padding:32px 28px;}
+  .brand{font-family:'Barlow Condensed', sans-serif; font-weight:700; font-size:22px; letter-spacing:0.05em; display:flex; align-items:center; gap:8px; margin-bottom:4px;}
+  .brand-mark{width:9px;height:9px;border-radius:50%; background:var(--green); box-shadow:0 0 8px var(--green);}
+  h1{font-family:'Barlow Condensed', sans-serif; font-weight:600; font-size:20px; margin:18px 0 22px; color:var(--text-mid);}
+  label{display:block; font-size:13px; color:var(--text-mid); margin-bottom:6px;}
+  input{width:100%; background:#050506; border:1px solid var(--border); border-radius:10px; padding:11px 13px; color:var(--text-hi); font-size:15px; margin-bottom:16px;}
+  input:focus{outline:none; border-color:var(--green);}
+  button{width:100%; padding:12px; border:none; border-radius:10px; background:var(--green); color:#04140c; font-weight:600; font-size:15px; cursor:pointer; margin-top:6px;}
+  button:disabled{opacity:0.5; cursor:not-allowed;}
+  .msg{font-size:13.5px; margin-top:14px; padding:10px 12px; border-radius:10px; display:none; line-height:1.5;}
+  .msg.error{display:block; background:#2a0f0f; border:1px solid #4a1a1a; color:#ff8a8a;}
+  .msg.ok{display:block; background:#0d3324; border:1px solid #1a4a35; color:#7dffc0;}
+  .foot{margin-top:20px; text-align:center; font-size:13.5px; color:var(--text-mid); display:flex; justify-content:space-between;}
+  .foot a{color:var(--green); text-decoration:none;}
+  .setup-warning{margin-top:16px; font-size:12.5px; color:#ffb457; background:#2a1f0e; border:1px solid #4a3a1a; padding:10px 12px; border-radius:10px; display:none; line-height:1.6;}
+</style>
+</head>
+<body>
+
+  <!-- SUPABASE 설정: signup.html/admin.html/user.html과 동일한 값으로 교체하세요 -->
+  <script>
+    const SUPABASE_URL = 'https://jlgmyahokoxexnidyadl.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpsZ215YWhva294ZXhuaWR5YWRsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg2Nzk5MjcsImV4cCI6MjEwNDI1NTkyN30.CI-6ZitGVYkE5eHzyCdsAkADKZFj4Ub4B1391IJ8C6w';
+  </script>
+
+  <div class="card">
+    <div class="brand"><span class="brand-mark"></span>SIGNAL</div>
+    <h1>로그인</h1>
+
+    <form id="loginForm">
+      <label for="email">회사 이메일</label>
+      <input id="email" type="email" placeholder="you@hansol.com" required>
+
+      <label for="password">비밀번호</label>
+      <input id="password" type="password" required>
+
+      <button type="submit" id="submitBtn">로그인</button>
+    </form>
+
+    <div class="msg" id="msg"></div>
+    <div class="setup-warning" id="setupWarning">⚠ Supabase URL/KEY가 설정되지 않았습니다. 파일 상단 값을 교체해주세요.</div>
+
+    <div class="foot">
+      <a href="signup.html">회원가입</a>
+      <a href="forgot-password.html">비밀번호를 잊으셨나요?</a>
+    </div>
+  </div>
+
+<script>
+(function(){
+  "use strict";
+  var configured = SUPABASE_URL.indexOf('YOUR-PROJECT-ID') === -1 && SUPABASE_ANON_KEY.length > 20;
+  var msgEl = document.getElementById('msg');
+  var form = document.getElementById('loginForm');
+  var submitBtn = document.getElementById('submitBtn');
+
+  if(!configured){
+    document.getElementById('setupWarning').style.display = 'block';
+    submitBtn.disabled = true;
+  }
+
+  var supabase = configured ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+
+  function showMsg(text, type){
+    msgEl.textContent = text;
+    msgEl.className = 'msg ' + type;
+  }
+
+  form.addEventListener('submit', async function(e){
+    e.preventDefault();
+    msgEl.className = 'msg';
+
+    var email = document.getElementById('email').value.trim();
+    var password = document.getElementById('password').value;
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = '로그인 중…';
+
+    var res = await supabase.auth.signInWithPassword({ email: email, password: password });
+
+    submitBtn.disabled = false;
+    submitBtn.textContent = '로그인';
+
+    if(res.error){
+      var friendly = res.error.message;
+      if(friendly.indexOf('Invalid login credentials') !== -1){
+        friendly = '이메일 또는 비밀번호가 올바르지 않습니다.';
+      } else if(friendly.indexOf('Email not confirmed') !== -1){
+        friendly = '이메일 인증이 아직 완료되지 않았습니다. 메일함을 확인해주세요.';
+      }
+      showMsg(friendly, 'error');
+      return;
+    }
+
+    showMsg('로그인 성공! 이동 중…', 'ok');
+    setTimeout(function(){ window.location.href = 'user-local-test.html'; }, 800);
+  });
+
+  // 이미 로그인되어 있으면 바로 신호등 페이지로
+  if(configured){
+    supabase.auth.getSession().then(function(res){
+      if(res.data.session){
+        window.location.href = 'user-local-test.html';
+      }
+    });
+  }
+})();
+</script>
+</body>
+</html>

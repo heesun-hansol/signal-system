@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>SIGNAL · 사용자</title>
+
+<!-- PWA: 홈 화면에 추가하면 앱처럼 열림 (iOS/Android 공통) -->
+<link rel="manifest" href="manifest-user.json">
+<meta name="theme-color" content="#020203">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="SIGNAL">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --bg:#020203;
+    --panel-face:#0c0c0e;
+    --panel-face-hi:#19191c;
+    --panel-border:#232326;
+    --metal-top:#d8dbde;
+    --metal-mid:#9ea3a8;
+    --metal-bottom:#6b6f74;
+    --green:#3dffa0;
+    --red:#ff4545;
+    --off-line:#3a3a3e;
+    --text-hi:#f2f2f0;
+    --text-mid:#9a9a9e;
+    --text-low:#59595d;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    background:radial-gradient(ellipse at 50% -10%, #131316 0%, var(--bg) 55%);
+    color:var(--text-hi);
+    font-family:'Barlow', sans-serif;
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+    overflow-x:hidden;
+  }
+
+  .topbar{display:flex; align-items:center; justify-content:space-between; padding:calc(18px + env(safe-area-inset-top)) 22px 18px; flex-shrink:0;}
+  .brand{font-family:'Barlow Condensed', sans-serif; font-weight:600; font-size:20px; letter-spacing:0.06em; display:flex; align-items:center; gap:8px;}
+  .brand-mark{width:9px;height:9px;border-radius:50%; background:var(--green); box-shadow:0 0 8px var(--green);}
+  .role-tag{font-size:13px; color:var(--text-mid); border:1px solid var(--panel-border); padding:4px 10px; border-radius:999px;}
+  .conn{display:flex; align-items:center; gap:7px; font-size:13px; color:var(--text-mid);}
+  .conn-dot{width:7px;height:7px;border-radius:50%; background:var(--text-low);}
+  .conn-dot.live{background:var(--green); box-shadow:0 0 6px var(--green); animation:pulse-dot 1.6s ease-in-out infinite;}
+  .conn-dot.down{background:var(--red); box-shadow:0 0 6px var(--red);}
+  @keyframes pulse-dot{0%,100%{opacity:1;} 50%{opacity:0.35;}}
+
+  .screen{flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:20px 20px calc(40px + env(safe-area-inset-bottom)); width:100%;}
+
+  .panel-wrap{display:flex; flex-direction:column; align-items:center;}
+  .panel{
+    position:relative; width:min(78vw, 300px); height:min(112vw, 430px); border-radius:22px;
+    background:linear-gradient(155deg, var(--panel-face-hi) 0%, var(--panel-face) 55%, #050506 100%);
+    border:1px solid var(--panel-border);
+    box-shadow:inset 0 1px 1px rgba(255,255,255,0.04), 0 20px 50px rgba(0,0,0,0.55);
+    display:flex; flex-direction:column; align-items:center; justify-content:flex-start;
+    padding:46px 20px 0; transition:box-shadow .35s ease;
+  }
+  .panel.glow-green{box-shadow:inset 0 1px 1px rgba(255,255,255,0.04), 0 0 70px 6px rgba(61,255,160,0.30), 0 20px 50px rgba(0,0,0,0.55);}
+  .panel.glow-red{box-shadow:inset 0 1px 1px rgba(255,255,255,0.04), 0 0 70px 6px rgba(255,69,69,0.30), 0 20px 50px rgba(0,0,0,0.55);}
+
+  .panel-icon-ring{width:clamp(120px, 30vw, 160px); height:clamp(120px, 30vw, 160px); border-radius:50%; border:2.5px solid var(--off-line); display:flex;align-items:center;justify-content:center; transition:border-color .3s ease, filter .3s ease; flex-shrink:0;}
+  .panel-icon-ring.on-green{border-color:var(--green); filter:drop-shadow(0 0 10px rgba(61,255,160,0.85));}
+  .panel-icon-ring.on-red{border-color:var(--red); filter:drop-shadow(0 0 10px rgba(255,69,69,0.85));}
+  .panel-icon-ring svg{width:50%; height:50%; stroke:var(--off-line); transition:stroke .3s ease;}
+  .panel-icon-ring.on-green svg{stroke:var(--green);}
+  .panel-icon-ring.on-red svg{stroke:var(--red);}
+
+  .panel-label{font-family:'Barlow Condensed', sans-serif; font-weight:600; font-size:clamp(22px, 5vw, 30px); letter-spacing:0.04em; margin-top:26px; color:var(--off-line); transition:color .3s ease, text-shadow .3s ease; height:34px;}
+  .panel-label.on-green{color:var(--green); text-shadow:0 0 14px rgba(61,255,160,0.6);}
+  .panel-label.on-red{color:var(--red); text-shadow:0 0 14px rgba(255,69,69,0.6);}
+
+  .panel-foot{margin-top:auto; width:100%; height:44px; border-radius:0 0 20px 20px; background:linear-gradient(180deg, var(--metal-top), var(--metal-mid) 55%, var(--metal-bottom));}
+
+  .user-status-text{margin-top:30px; font-size:15px; color:var(--text-mid); text-align:center;}
+  .viewer-note{position:fixed; bottom:calc(18px + env(safe-area-inset-bottom)); left:0; right:0; text-align:center; font-size:12.5px; color:var(--text-low);}
+  .setup-warning{
+    margin-top:22px; max-width:340px; text-align:center; font-size:13px; color:#ffb457;
+    background:#2a1f0e; border:1px solid #4a3a1a; padding:12px 16px; border-radius:12px; line-height:1.6;
+  }
+
+  .toast{
+    position:fixed; top:16px; left:50%; transform:translate(-50%, -140%);
+    background:#151517; border:1px solid var(--panel-border); padding:12px 18px; border-radius:12px;
+    font-size:14px; color:var(--text-hi); display:flex; align-items:center; gap:9px;
+    box-shadow:0 12px 30px rgba(0,0,0,0.5); transition:transform .35s cubic-bezier(.2,.8,.2,1); z-index:50; max-width:88vw;
+  }
+  .toast.show{transform:translate(-50%, 0);}
+  .toast-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+
+  @media (prefers-reduced-motion: reduce){ .conn-dot.live{animation:none;} .toast{transition:none;} }
+</style>
+</head>
+<body>
+
+  <!--
+    ============================================================
+    SUPABASE 설정 (필수) — admin.html과 반드시 동일한 값 사용
+    ============================================================
+  -->
+  <script>
+    const SUPABASE_URL = 'https://jlgmyahokoxexnidyadl.supabase.co';   // ← 본인 Project URL로 교체
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpsZ215YWhva294ZXhuaWR5YWRsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg2Nzk5MjcsImV4cCI6MjEwNDI1NTkyN30.CI-6ZitGVYkE5eHzyCdsAkADKZFj4Ub4B1391IJ8C6w';              // ← 본인 anon public key로 교체
+  </script>
+
+  <div class="topbar">
+    <div class="brand"><span class="brand-mark"></span>SIGNAL <span class="role-tag">사용자</span></div>
+    <span class="conn"><span class="conn-dot" id="connDot"></span><span id="connText">연결 중…</span></span>
+  </div>
+
+  <div class="screen">
+    <div class="panel-wrap">
+      <div class="panel" id="panel">
+        <div class="panel-icon-ring" id="ring">
+          <svg id="iconPerson" viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="8" r="3.4"/>
+            <path d="M5.5 20c0-4 3-6.5 6.5-6.5S18.5 16 18.5 20"/>
+          </svg>
+          <svg id="iconClock" viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="display:none">
+            <circle cx="12" cy="12" r="8.5"/>
+            <path d="M12 7.5V12l3 2"/>
+          </svg>
+        </div>
+        <div class="panel-label" id="label">&nbsp;</div>
+        <div class="panel-foot"></div>
+      </div>
+      <div class="user-status-text" id="statusText">연결 중…</div>
+      <div class="setup-warning" id="setupWarning" style="display:none">
+        ⚠ Supabase URL/KEY가 아직 설정되지 않았습니다. 파일 상단 값을 admin.html과 동일하게 맞춰주세요.
+      </div>
+    </div>
+  </div>
+  <div class="viewer-note">실시간 연결 · 신호가 바뀌면 자동으로 갱신됩니다</div>
+
+  <div class="toast" id="toast"><span class="toast-dot" id="toastDot"></span><span id="toastText"></span></div>
+
+<script>
+(function(){
+  "use strict";
+
+  var TABLE = 'lights';
+  var ROW_ID = 1;
+  var FALLBACK_POLL_MS = 5000; // Realtime 연결이 끊겼을 때의 보조 폴링 (U-2)
+
+  var els = {
+    ring: document.getElementById('ring'),
+    label: document.getElementById('label'),
+    iconPerson: document.getElementById('iconPerson'),
+    iconClock: document.getElementById('iconClock'),
+    statusText: document.getElementById('statusText'),
+    connDot: document.getElementById('connDot'),
+    connText: document.getElementById('connText'),
+    toast: document.getElementById('toast'),
+    toastDot: document.getElementById('toastDot'),
+    toastText: document.getElementById('toastText'),
+    setupWarning: document.getElementById('setupWarning'),
+  };
+
+  var state = { light: null, notifAsked: false, channelStatus: 'connecting' };
+  var supabase = null;
+  var fallbackTimer = null;
+
+  var configured = SUPABASE_URL.indexOf('YOUR-PROJECT-ID') === -1 && SUPABASE_ANON_KEY.length > 20;
+  if(!configured){
+    els.setupWarning.style.display = 'block';
+    els.connText.textContent = '설정 필요';
+    els.statusText.textContent = '관리자에게 설정을 요청하세요';
+  } else {
+    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  }
+
+  // ---------- render (U-1, U-3) ----------
+  function render(light){
+    els.ring.classList.remove('on-green','on-red');
+    els.label.classList.remove('on-green','on-red');
+    document.getElementById('panel').classList.remove('glow-green','glow-red');
+
+    if(light === 'green'){
+      els.ring.classList.add('on-green');
+      els.label.classList.add('on-green');
+      document.getElementById('panel').classList.add('glow-green');
+      els.label.textContent = 'COME IN';
+      els.iconPerson.style.display = '';
+      els.iconClock.style.display = 'none';
+      els.statusText.textContent = '지금 들어오셔도 됩니다';
+    } else if(light === 'red'){
+      els.ring.classList.add('on-red');
+      els.label.classList.add('on-red');
+      document.getElementById('panel').classList.add('glow-red');
+      els.label.textContent = 'PLEASE WAIT';
+      els.iconPerson.style.display = 'none';
+      els.iconClock.style.display = '';
+      els.statusText.textContent = '잠시만 기다려 주세요';
+    } else {
+      els.label.textContent = '\u00a0';
+      els.iconPerson.style.display = '';
+      els.iconClock.style.display = 'none';
+      els.statusText.textContent = '현재 대기 중인 신호가 없습니다';
+    }
+  }
+
+  function showToast(text, color){
+    els.toastText.textContent = text;
+    els.toastDot.style.background = color==='g' ? 'var(--green)' : color==='r' ? 'var(--red)' : 'var(--off-line)';
+    els.toast.classList.add('show');
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(function(){ els.toast.classList.remove('show'); }, 2600);
+  }
+
+  function setConn(status){
+    state.channelStatus = status;
+    els.connDot.classList.remove('live','down');
+    if(status === 'live'){ els.connDot.classList.add('live'); els.connText.textContent = '연결됨'; }
+    else if(status === 'down'){ els.connDot.classList.add('down'); els.connText.textContent = '연결 끊김 · 재시도 중'; }
+    else { els.connText.textContent = '연결 중…'; }
+  }
+
+  // ---------- audio beep (U-4) ----------
+  // iOS Safari는 사용자가 화면을 최소 한 번 터치하기 전엔 소리 재생을 막습니다.
+  // 그래서 페이지의 첫 터치/클릭 때 AudioContext를 미리 활성화(unlock)해둡니다.
+  var audioCtx = null;
+  function unlockAudio(){
+    if(audioCtx) return;
+    try{
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if(audioCtx.state === 'suspended') audioCtx.resume();
+    }catch(e){}
+  }
+  document.addEventListener('touchstart', unlockAudio, { once:true, passive:true });
+  document.addEventListener('click', unlockAudio, { once:true });
+
+  function beep(){
+    try{
+      audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+      if(audioCtx.state === 'suspended') audioCtx.resume();
+      var o = audioCtx.createOscillator();
+      var g = audioCtx.createGain();
+      o.type = 'sine';
+      o.frequency.value = 720;
+      g.gain.value = 0.0001;
+      o.connect(g); g.connect(audioCtx.destination);
+      var now = audioCtx.currentTime;
+      g.gain.exponentialRampToValueAtTime(0.12, now + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, now + 0.32);
+      o.start(now);
+      o.stop(now + 0.34);
+    }catch(e){}
+  }
+
+  // ---------- notification (U-6): 탭이 열려있을 때만 유효, 백그라운드일 때만 발송 ----------
+  function askNotifPermission(){
+    if(state.notifAsked) return;
+    state.notifAsked = true;
+    if('Notification' in window && Notification.permission === 'default'){
+      Notification.requestPermission();
+    }
+  }
+  function tryNotify(light){
+    if(!('Notification' in window)) return;
+    if(Notification.permission !== 'granted') return;
+    if(document.visibilityState === 'visible') return; // 탭이 보이는 중이면 배너 생략 (토스트로 충분)
+    var text = light === 'green' ? 'COME IN — 초록불이 켜졌습니다' :
+               light === 'red' ? 'PLEASE WAIT — 빨간불이 켜졌습니다' :
+               '신호등이 꺼졌습니다';
+    try{ new Notification('SIGNAL 상태 변경', { body: text }); }catch(e){}
+  }
+
+  function onNewState(nextLight){
+    var changed = state.light !== null && nextLight !== state.light;
+    state.light = nextLight;
+    render(state.light);
+    if(changed){ // U-3: 값이 바뀌었을 때만
+      beep();
+      tryNotify(state.light);
+      var text = state.light === 'green' ? '초록불로 바뀌었습니다' : state.light === 'red' ? '빨간불로 바뀌었습니다' : '불이 꺼졌습니다';
+      var color = state.light === 'green' ? 'g' : state.light === 'red' ? 'r' : null;
+      showToast(text, color);
+    }
+  }
+
+  // ---------- supabase I/O ----------
+  async function fetchOnce(){
+    try{
+      var res = await supabase.from(TABLE).select('*').eq('id', ROW_ID).single();
+      if(res.error || !res.data){ onNewState('off'); return; } // C-3
+      onNewState(res.data.state || 'off');
+    }catch(e){ /* 다음 폴링에서 재시도 */ }
+  }
+
+  function startFallbackPolling(){
+    stopFallbackPolling();
+    fallbackTimer = setInterval(function(){
+      if(state.channelStatus !== 'live') fetchOnce();
+    }, FALLBACK_POLL_MS);
+  }
+  function stopFallbackPolling(){ if(fallbackTimer){ clearInterval(fallbackTimer); fallbackTimer = null; } }
+
+  // ---------- init ----------
+  async function init(){
+    if(!configured) return;
+    askNotifPermission();
+    setConn('connecting');
+    await fetchOnce();
+
+    var channel = supabase.channel('lights-user-' + ROW_ID)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: TABLE, filter: 'id=eq.' + ROW_ID }, function(payload){
+        if(payload.new) onNewState(payload.new.state || 'off');
+      })
+      .subscribe(function(status){
+        if(status === 'SUBSCRIBED') setConn('live');
+        else if(status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') setConn('down');
+      });
+
+    startFallbackPolling(); // 실시간 채널이 끊겨도 U-7 다중 뷰어가 계속 최신값을 볼 수 있도록 보조
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>
