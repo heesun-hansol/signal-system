@@ -234,6 +234,15 @@
       els.iconPerson.style.display = '';
       els.iconClock.style.display = 'none';
     }
+
+    // 홈 화면 아이콘 배지: 빨간불일 때만 아이콘 위에 빨간 점 표시 (iOS 16.4+, 알림 권한 필요)
+    if('setAppBadge' in navigator){
+      if(light === 'red'){
+        navigator.setAppBadge(1).catch(function(){});
+      } else {
+        navigator.clearAppBadge().catch(function(){});
+      }
+    }
   }
 
   function fmtTime(ts){
@@ -323,6 +332,12 @@
   // ---------- init ----------
   async function init(){
     if(!configured) return;
+
+    // 홈 화면 아이콘 배지가 뜨려면 알림 권한이 있어야 함 (iOS 요구사항)
+    if('Notification' in window && Notification.permission === 'default'){
+      Notification.requestPermission();
+    }
+
     setConn('connecting');
     await fetchInitial();
     render(state.light);
