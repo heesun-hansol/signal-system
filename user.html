@@ -195,10 +195,10 @@
       els.ring.classList.add('on-green');
       els.label.classList.add('on-green');
       document.getElementById('panel').classList.add('glow-green');
-      els.label.textContent = 'COME IN';
+      els.label.textContent = 'PLEASE ENTER';
       els.iconPerson.style.display = '';
       els.iconClock.style.display = 'none';
-      els.statusText.textContent = '지금 들어오셔도 됩니다';
+      els.statusText.textContent = '지금 들어가셔도 좋습니다';
     } else if(light === 'red'){
       els.ring.classList.add('on-red');
       els.label.classList.add('on-red');
@@ -206,7 +206,7 @@
       els.label.textContent = 'PLEASE WAIT';
       els.iconPerson.style.display = 'none';
       els.iconClock.style.display = '';
-      els.statusText.textContent = '잠시만 기다려 주세요';
+      els.statusText.textContent = '잠시만 기다려주세요';
     } else {
       els.label.textContent = '\u00a0';
       els.iconPerson.style.display = '';
@@ -275,7 +275,7 @@
     if(!('Notification' in window)) return;
     if(Notification.permission !== 'granted') return;
     if(document.visibilityState === 'visible') return; // 탭이 보이는 중이면 배너 생략 (토스트로 충분)
-    var text = light === 'green' ? 'COME IN — 초록불이 켜졌습니다' :
+    var text = light === 'green' ? 'PLEASE ENTER — 초록불이 켜졌습니다' :
                light === 'red' ? 'PLEASE WAIT — 빨간불이 켜졌습니다' :
                '신호등이 꺼졌습니다';
     try{ new Notification('SIGNAL 상태 변경', { body: text }); }catch(e){}
