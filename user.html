@@ -245,21 +245,31 @@
   document.addEventListener('touchstart', unlockAudio, { once:true, passive:true });
   document.addEventListener('click', unlockAudio, { once:true });
 
+  // 벨소리 느낌의 화음 한 번을 재생 (배음을 섞어 '종' 소리에 가깝게 만듦)
+  function playChime(startTime, freq, peakGain){
+    [1, 2, 2.4, 4].forEach(function(mult, i){
+      var o = audioCtx.createOscillator();
+      var g = audioCtx.createGain();
+      o.type = 'sine';
+      o.frequency.value = freq * mult;
+      var thisPeak = i === 0 ? peakGain : peakGain * (0.35 / mult);
+      g.gain.setValueAtTime(0.0001, startTime);
+      g.gain.exponentialRampToValueAtTime(thisPeak, startTime + 0.015);
+      g.gain.exponentialRampToValueAtTime(0.0001, startTime + 1.1);
+      o.connect(g); g.connect(audioCtx.destination);
+      o.start(startTime);
+      o.stop(startTime + 1.15);
+    });
+  }
+
   function beep(){
     try{
       audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
       if(audioCtx.state === 'suspended') audioCtx.resume();
-      var o = audioCtx.createOscillator();
-      var g = audioCtx.createGain();
-      o.type = 'sine';
-      o.frequency.value = 720;
-      g.gain.value = 0.0001;
-      o.connect(g); g.connect(audioCtx.destination);
       var now = audioCtx.currentTime;
-      g.gain.exponentialRampToValueAtTime(0.12, now + 0.02);
-      g.gain.exponentialRampToValueAtTime(0.0001, now + 0.32);
-      o.start(now);
-      o.stop(now + 0.34);
+      // '딩동' 2음 벨소리, 기존보다 훨씬 큰 음량(0.12 -> 0.55)
+      playChime(now, 880, 0.55);        // 딩
+      playChime(now + 0.32, 659, 0.5);  // 동
     }catch(e){}
   }
 
